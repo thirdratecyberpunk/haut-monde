@@ -1,26 +1,39 @@
-<template>
-  <img alt="Vue logo" src="./assets/logo.png">
-  <HelloWorld msg="Welcome to Your Vue.js App"/>
-</template>
+<script setup>
+import { computed } from "vue";
+import { tttclient } from './game/client.js'
+import BoardComponent from './components/BoardComponent.vue';
 
-<script>
-import HelloWorld from './components/HelloWorld.vue'
+const client = tttclient;
 
-export default {
-  name: 'App',
-  components: {
-    HelloWorld
+console.log(client);
+
+const cells = computed(() => client.state.G.cells);
+
+const culcCellId = (row, col) => (row - 1) * 3 + col - 1;
+
+const resultMsg = computed(() => {
+  const isGameOver = client.state.ctx.gameover;
+  if (isGameOver) {
+    return isGameOver.winner !== undefined ? `Winner: ${isGameOver.winner}` : "Draw";
+  } else {
+    return "";
   }
-}
+});
 </script>
 
+<template>
+  <h1> Haute Monde </h1>
+  <h2> {{  client.state }}</h2>
+  <BoardComponent :ctx="client.state.ctx" :G="client.state.G" :moves="client.client.moves" />
+  <p>{{ resultMsg }}</p>
+</template>
+
 <style>
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+.cell {
+  border: 1px solid #555;
+  width: 50px;
+  height: 50px;
+  line-height: 50px;
   text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
 }
 </style>
