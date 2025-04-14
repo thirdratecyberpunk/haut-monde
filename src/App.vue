@@ -5,7 +5,7 @@
 
 <script>
 import { Client } from "boardgame.io/client";
-import { TicTacToe } from "./game/Game";
+import { HautMonde} from "./game/Game";
 import Board from "./components/BoardComponent.vue";
 
 export default {
@@ -17,7 +17,7 @@ export default {
   mounted() {
     // Run boardgame.io client on component mount.
     this.client = Client({
-      game: TicTacToe,
+      game: HautMonde
     });
     this.client.start();
     // Set up a state subscription to update component state

@@ -1,78 +1,130 @@
-import { INVALID_MOVE } from 'boardgame.io/core';
+// import { INVALID_MOVE } from 'boardgame.io/core';
 
-export const TicTacToe = {
-  setup: () => ({ cells: Array(9).fill(null) }),
+// deck of possible status cards
+var DEFAULT_LUXURY_VALUES = [1,2,3,4,5,6,7,8,9,10]; 
+// default currency distribution
+var DEFAULT_CURRENCY_DISTRIBUTION = [1,2,3,4,6,8,10,12,15,20,25];
+// how many green cards have to be revealed before game immediately ends
+var DEFAULT_GAME_END_DEADLINE = 4;
 
+/**
+ * Function that generates Luxury cards
+ * @param {*} value -> integer value to define card as
+ * @returns 
+ */
+const createLuxuryCard = (value) => ({
+  type: "LuxuryCard", // helps identify the card type if needed
+  value: value,
+  incrementsGameEnd: false,
+  isPositive: true,
+  endOfRoundEffect: null,
+});
+
+const setupStatusDeck = () => {
+  let statusDeck = DEFAULT_LUXURY_VALUES.map((card) => createLuxuryCard(card));
+  return statusDeck;
+};
+
+// TODO: figure out how to pass through the number of players from game state when
+// initialised
+const setupPlayerHands = () => {
+  let player_hands = [];
+  for (let i = 0; i !== 2; i++){
+    player_hands[i] = DEFAULT_CURRENCY_DISTRIBUTION;
+  }
+  return player_hands;
+}
+
+var status_deck = setupStatusDeck();
+var player_hands = setupPlayerHands();
+
+export const HautMonde = {
+  setup: ({random}) => ({
+    status_deck: random.Shuffle(status_deck),
+    current_status_card: null,
+    current_game_end_timer : 0,
+    current_round: 0,
+    game_end_deadline: DEFAULT_GAME_END_DEADLINE,
+    player_hands: player_hands,
+    current_bids: []
+  }),
+  phases: {
+    // draws the card for auction and checks if game should end
+    drawNextStatusCard: {
+      onBegin: ({G, ctx, events}) => {
+        console.log(G, ctx);
+        console.log('Drawing next status card');
+        G.current_status_card = G.status_deck.pop();
+        if (G.current_status_card.incrementsGameEnd){
+          G.current_game_end_timer++;
+        }
+        G.current_round++;
+        // TODO: set the starting player to the last player to go before this phase
+        // as ending a phase ends that player's turn
+
+        // then, moves onto the next auction phase
+        events.endPhase();
+      },
+      next: ({G}) => {
+        // checks what auction to hold
+        return G.current_status_card.isPositive ? 'positiveAuction' : 'negativeAuction';
+      },
+      start: true
+    },
+    // phase where players are paying to buy the card
+    positiveAuction: {
+      onBegin: ({G, ctx}) => {
+        console.log(G,ctx);
+        console.log('Starting a positive auction');
+      },
+      moves: {
+        // player takes any money cards they bid back into hand
+        // and folds out of this auction
+        // (this ends the auction if there is only one player who 
+        // hasn't folded)
+        pass: ({G, ctx}) => {
+          console.log(G,ctx);
+        },
+        // player adds another money card from their hand into
+        // their current bid assuming it's more than the last bid
+        bid: ({G, ctx}) => {
+          console.log(G,ctx);
+        }
+      },
+      turn: {minMoves: 1, maxMoves: 1}
+    },
+    // phase where players are paying to avoid taking the card
+    negativeAuction: {
+      onBegin: ({G, ctx}) => {
+        console.log(G,ctx);
+        console.log('Starting a negative auction');
+      },
+      moves: {
+        // player takes any cards they've played back into hand 
+        // and ends this phase
+        pass: ({G, ctx}) => {
+          console.log(G,ctx);
+        },
+        // player adds another money card from their hand into
+        // their current bid assuming it's more than the last bid
+        bid: ({G, ctx}) => {
+          console.log(G,ctx);
+        }
+      },
+      turn: {minMoves: 1, maxMoves: 1}
+    },
+  },
   turn: {
     moveLimit: 1
   },
-
-  moves: {
-    clickCell: ({G, ctx}, id) => {
-      console.log(G, ctx, id);
-      if (G.cells[id] !== null) {
-        return INVALID_MOVE;
-      }
-      G.cells[id] = ctx.currentPlayer;
+  moves:{
+    // player chooses to pass in the current auction
+    pass: ({G, ctx}) => {
+      console.log(G, ctx);
     }
   },
-
   endIf: ({G, ctx}) => {
-    if (IsVictory(G.cells)) {
-      return { winner: ctx.currentPlayer };
-    }
-    if (IsDraw(G.cells)) {
-      return { draw: true };
-    }
+    console.log(ctx);
+    return (G.current_game_end_timer > G.DEFAULT_GAME_END_DEADLINE) || (G.status_deck.length === 0);
   },
-
-  ai: {
-    enumerate: ({G, ctx}) => {
-      console.log(G);
-      console.log(ctx);
-      let moves = [];
-      for (let i = 0; i < 9; i++) {
-        if (G.cells[i] === null) {
-          moves.push({ move: 'clickCell', args: [i] });
-        }
-      }
-      return moves;
-    }
-  }
-};
-
-// Return true if `cells` is in a winning configuration.
-function IsVictory(cells) {
-  if (cells){
-    const positions = [
-      [0, 1, 2],
-      [3, 4, 5],
-      [6, 7, 8],
-      [0, 3, 6],
-      [1, 4, 7],
-      [2, 5, 8],
-      [0, 4, 8],
-      [2, 4, 6]
-    ];
-  
-    const isRowComplete = (row) => {
-      const symbols = row.map((i) => cells[i]);
-      return symbols.every((i) => i !== null && i === symbols[0]);
-    };
-  
-    return positions.map(isRowComplete).some((i) => i === true);
-  }
-  else{
-    return false;
-  }
-}
-
-// Return true if all `cells` are occupied.
-function IsDraw(cells) {
-  if (cells){
-    return cells.filter((c) => c === null).length === 0;
-  }
-  else{
-    return false;
-  }
 }

@@ -3,27 +3,23 @@
   <h1> Board component</h1>
     <div>
       <table id="board">
+        <h2>Round {{  G.current_round }} </h2>
+        <h2>{{ G.current_game_end_timer }}/{{G.game_end_deadline}} green cards have appeared</h2>
+        <h2 v-if="G.current_status_card.isPositive"> Bidding to TAKE card</h2>
+        <h2 v-else> Bidding to NOT take card</h2>
         <tbody>
-          <tr v-for="row in 3" :key="row">
-            <td
-              v-for="col in 3"
-              :key="3 * (row - 1) + (col - 1)"
-              @click="onClick(3 * (row - 1) + (col - 1))"
-            >
-              <div
-                v-if="G.cells[3 * (row - 1) + (col - 1)]"
-                :style="cellStyle"
-              >
-                {{ G.cells[3 * (row - 1) + (col - 1)] }}
-              </div>
-              <button
-                v-else
-                :style="cellStyle"
-                @click="onClick(3 * (row - 1) + (col - 1))"
-              />
+          <tr>
+            <td>
+              {{  G.current_status_card }}
             </td>
           </tr>
         </tbody>
+        <h2> Bids </h2>
+        {{  G.current_bids.length > 0 ? G.current_bids : 'There are yet to be any bids.'}}
+        <h2> Your current bid </h2>
+        {{ G.current_bids[ctx.currentPlayer] ?? 'You have yet to bid.' }}
+        <h2> Your remaining currency </h2>
+        <p> {{ G.player_hands[ctx.currentPlayer] }}</p>
       </table>
       <div v-if="ctx.gameover" id="winner">
         {{ ctx.gameover.winner !== undefined ? `Winner: ${ctx.gameover.winner}` : 'Draw!' }}
@@ -52,7 +48,7 @@
     methods: {
       onClick(id) {
         console.log(id);
-        this.moves.clickCell(id);
+        this.moves.pass();
       },
     },
   };
