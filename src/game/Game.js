@@ -1,48 +1,78 @@
 import { INVALID_MOVE } from 'boardgame.io/core';
 
 export const TicTacToe = {
-    setup: () => ({ cells: Array(9).fill(null) }),
+  setup: () => ({ cells: Array(9).fill(null) }),
 
-    turn: {
-        minMoves: 1,
-        maxMoves: 1,
-      },
-  
-    moves: {
-        clickCell: ({ G, playerID }, id) => {
-            if (G.cells[id] !== null) {
-              return INVALID_MOVE;
-            }
-            G.cells[id] = playerID;
-          }
-    },
+  turn: {
+    moveLimit: 1
+  },
 
-    endIf: ({ G, ctx }) => {
-        if (IsVictory(G.cells)) {
-          return { winner: ctx.currentPlayer };
+  moves: {
+    clickCell: ({G, ctx}, id) => {
+      console.log(G, ctx, id);
+      if (G.cells[id] !== null) {
+        return INVALID_MOVE;
+      }
+      G.cells[id] = ctx.currentPlayer;
+    }
+  },
+
+  endIf: ({G, ctx}) => {
+    if (IsVictory(G.cells)) {
+      return { winner: ctx.currentPlayer };
+    }
+    if (IsDraw(G.cells)) {
+      return { draw: true };
+    }
+  },
+
+  ai: {
+    enumerate: ({G, ctx}) => {
+      console.log(G);
+      console.log(ctx);
+      let moves = [];
+      for (let i = 0; i < 9; i++) {
+        if (G.cells[i] === null) {
+          moves.push({ move: 'clickCell', args: [i] });
         }
-        if (IsDraw(G.cells)) {
-          return { draw: true };
-        }
-      },
-  };
+      }
+      return moves;
+    }
+  }
+};
 
-  // Return true if `cells` is in a winning configuration.
+// Return true if `cells` is in a winning configuration.
 function IsVictory(cells) {
+  if (cells){
     const positions = [
-      [0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6],
-      [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8],
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8],
+      [0, 4, 8],
+      [2, 4, 6]
     ];
   
-    const isRowComplete = row => {
-      const symbols = row.map(i => cells[i]);
-      return symbols.every(i => i !== null && i === symbols[0]);
+    const isRowComplete = (row) => {
+      const symbols = row.map((i) => cells[i]);
+      return symbols.every((i) => i !== null && i === symbols[0]);
     };
   
-    return positions.map(isRowComplete).some(i => i === true);
+    return positions.map(isRowComplete).some((i) => i === true);
   }
-  
-  // Return true if all `cells` are occupied.
-  function IsDraw(cells) {
-    return cells.filter(c => c === null).length === 0;
+  else{
+    return false;
   }
+}
+
+// Return true if all `cells` are occupied.
+function IsDraw(cells) {
+  if (cells){
+    return cells.filter((c) => c === null).length === 0;
+  }
+  else{
+    return false;
+  }
+}

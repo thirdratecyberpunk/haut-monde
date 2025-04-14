@@ -51,6 +51,7 @@
     },
     methods: {
       onClick(id) {
+        console.log(id);
         this.moves.clickCell(id);
       },
     },
