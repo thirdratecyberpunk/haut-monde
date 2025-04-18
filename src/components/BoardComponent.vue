@@ -3,8 +3,8 @@
   <h1> Board component</h1>
     <div>
       <table id="board">
-        <h2>Round {{  G.current_round }} </h2>
-        <h2>{{ G.current_game_end_timer }}/{{G.game_end_deadline}} green cards have appeared</h2>
+        <h2>Round {{  G.current_round }} ({{ G.status_deck.length }} cards remaining)</h2>
+        <h2>{{ G.current_game_end_timer }}/{{G.game_end_deadline}} Prestige cards have appeared</h2>
         <h2 v-if="G.current_status_card.isPositive"> Bidding to TAKE card</h2>
         <h2 v-else> Bidding to NOT take card</h2>
         <tbody>
@@ -17,11 +17,14 @@
         <h2> Bids </h2>
         {{  G.current_bids.length > 0 ? G.current_bids : 'There are yet to be any bids.'}}
         <h2> Your current bid </h2>
-        {{ G.current_bids[ctx.currentPlayer] ?? 'You have yet to bid.' }}
+        {{ G.current_bids[ctx.currentPlayer].length > 0 ? G.current_bids[ctx.currentPlayer] : 'You have yet to bid.' }}
+        <h2> Your current status cards </h2>
+        <p> {{ G.player_statuses[ctx.currentPlayer].length > 0 ? G.player_statuses[ctx.currentPlayer] : 'You have yet to earn a status card.'}}</p>
         <h2> Your remaining currency </h2>
-        <p> {{ G.player_hands[ctx.currentPlayer] }}</p>
+        <p> {{ G.player_hands[ctx.currentPlayer].length > 0 ? G.player_hands[ctx.currentPlayer] : 'You are bankrupted!' }}</p>
       </table>
       <div v-if="ctx.gameover" id="winner">
+        {{ ctx.gameover }}
         {{ ctx.gameover.winner !== undefined ? `Winner: ${ctx.gameover.winner}` : 'Draw!' }}
       </div>
     </div>

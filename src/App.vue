@@ -17,7 +17,8 @@ export default {
   mounted() {
     // Run boardgame.io client on component mount.
     this.client = Client({
-      game: HautMonde
+      game: HautMonde,
+      numPlayers: 3
     });
     this.client.start();
     // Set up a state subscription to update component state
