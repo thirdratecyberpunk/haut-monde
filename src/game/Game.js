@@ -2,11 +2,14 @@
 import { INVALID_MOVE } from 'boardgame.io/core';
 
 // deck of possible status cards (victory points)
-var DEFAULT_LUXURY_VALUES = [1,2,3,4,5,6,7,8,9,10]; 
+// var DEFAULT_LUXURY_VALUES = [1,2,3,4,5,6,7,8,9,10]; 
+var DEFAULT_LUXURY_VALUES = [1,2,3]; 
 // deck of possible prestige cards (VP modifier multipliers)
-// var DEFAULT_PRESTIGE_VALUES [2,2,2,0.5];
+// var DEFAULT_PRESTIGE_VALUES = [2,2,2,0.5];
+var DEFAULT_PRESTIGE_VALUES = [2,2,2];
 // default currency distribution
 var DEFAULT_CURRENCY_DISTRIBUTION = [1,2,3,4,6,8,10,12,15,20,25];
+// var DEFAULT_CURRENCY_DISTRIBUTION = [1,2,3];
 // how many green cards have to be revealed before game immediately ends
 var DEFAULT_GAME_END_DEADLINE = 2;
 
@@ -18,15 +21,35 @@ var DEFAULT_GAME_END_DEADLINE = 2;
 const createLuxuryCard = (value) => ({
   type: "LuxuryCard", // helps identify the card type if needed
   value: value,
-  incrementsGameEnd: true,
+  incrementsGameEnd: false,
   isPositive: (value > 0),
+  endOfRoundEffect: null,
+});
+
+/**
+ * Function that generates Prestige cards
+ * @param {*} value -> integer value to define card as
+ * @returns 
+ */
+const createPrestigeCard = (value) => ({
+  type: "PrestigeCard", // helps identify the card type if needed
+  value: value,
+  incrementsGameEnd: true,
+  isPositive: (value > 1),
   endOfRoundEffect: null,
 });
 
 
 const setupStatusDeck = () => {
+  let finalDeck = [];
+
   let statusDeck = DEFAULT_LUXURY_VALUES.map((card) => createLuxuryCard(card));
-  return statusDeck;
+  let prestigeDeck = DEFAULT_PRESTIGE_VALUES.map((card) => createPrestigeCard(card));
+
+  finalDeck = finalDeck.concat(statusDeck);
+  finalDeck = finalDeck.concat(prestigeDeck);
+
+  return finalDeck;
 };
 
 /**
@@ -35,7 +58,12 @@ const setupStatusDeck = () => {
  * @returns 
  */
 const sumArray = (arrayToSum) => {
-  return arrayToSum.reduce((a,b) => a + b, 0);
+  if (arrayToSum === undefined || arrayToSum.length == 0){
+    return 0;
+  }
+  else{
+    return arrayToSum.reduce((a,b) => a + b, 0);
+  }
 }
 
 
@@ -104,6 +132,57 @@ const findNonPassIndex = (arr) => {
   return arr.findIndex(subArray => Array.isArray(subArray) && !subArray.includes("PASS"));
 }
 
+/**
+ * Returns the product of an array of numbers
+ * @param {*} prestiges 
+ * @returns 
+ */
+const calculatePrestigeProduct = (prestiges) => {
+  if (prestiges === undefined || prestiges.length == 0){
+    return 1;
+  }
+  else{
+    let prestigeModifier = 1;
+    for (let i = 0; i < prestiges.length; i++){
+      console.log(prestiges[i]);
+      prestigeModifier = prestigeModifier * prestiges[i].value;
+    }
+    console.log(`prestigeModifier: ${prestigeModifier}`);
+    return prestigeModifier;
+  }
+}
+
+/**
+ * Given an array of status objects, returns the sum of the
+ * values of the array
+ * @param {*} statuses 
+ * @returns 
+ */
+const sumValuesOfStatuses = (statuses) => {
+  if (statuses === undefined || statuses.length == 0){
+    return 0;
+  }
+  else{
+    let statusScore = 0;
+    for (let i = 0; i < statuses.length; i++){
+      statusScore += statuses[i].value;
+    }
+    console.log(`statusScore: ${statusScore}`);
+    return statusScore;
+  }
+}
+
+/**
+ * Given the array of status cards acquired
+ * and an array of prestige cards acquired, 
+ * returns the final score (sum of status cards * sum of prestige cards)
+ * @param {*} statuses 
+ * @param {*} prestiges 
+ */
+const calculatePlayerScore = (statuses, prestiges) => {
+  return (sumValuesOfStatuses(statuses) * calculatePrestigeProduct(prestiges));
+}
+
 var status_deck = setupStatusDeck();
 
 export const HautMonde = {
@@ -118,6 +197,7 @@ export const HautMonde = {
     player_hands: Array(ctx.numPlayers).fill(DEFAULT_CURRENCY_DISTRIBUTION),
     current_bids: Array(ctx.numPlayers).fill([]),
     player_statuses: Array(ctx.numPlayers).fill([]),
+    player_prestiges: Array(ctx.numPlayers).fill([]),
   }),
   minPlayers: 3,
   maxPlayers: 6,
@@ -160,7 +240,12 @@ export const HautMonde = {
           if (hasOnlyOneNonPassSubArray(G.current_bids)){
             // gives the status card to the player who hasn't passed
             let auction_winner_index = findNonPassIndex(G.current_bids);
-            G.player_statuses[auction_winner_index].push(G.current_status_card);
+            if (G.current_status_card.type == "LuxuryCard"){
+              G.player_statuses[auction_winner_index].push(G.current_status_card);
+            }
+            else if (G.current_status_card.type == "PrestigeCard"){
+              G.player_prestiges[auction_winner_index].push(G.current_status_card);
+            }
             G.last_player = auction_winner_index;
             // resets all bids
             G.current_bids = G.current_bids.map(() => []);
@@ -225,13 +310,25 @@ export const HautMonde = {
   },
   endIf: ({G, ctx}) => {
     if ((G.current_game_end_timer == G.game_end_deadline) || (G.status_deck.length === 0)){
-      let result = {winner: null, castOut: null};
+      let result = {winner: null, castOut: null, finalScores: []};
 
+      // include all player's final money counts
+      let finalHands = G.player_hands;
+      result.finalHands = finalHands;
+      result.finalStatuses = G.player_statuses;
+      result.finalPrestiges = G.player_prestiges;
+
+      // calculate all player's final scores
+      let finalScores = [];
       let possible_winners = Array(ctx.numPlayers).fill(0).map((_, index) => index);
+      for (let i = 0; i < ctx.numPlayers; i++){
+        finalScores[i] = calculatePlayerScore(G.player_statuses[i], G.player_prestiges[i])
+      }
+      let bestScore = Math.max(...finalScores);
+      result.finalScores = finalScores;
       // first, cast out the player(s) with the lowest remaining money
       const { filteredIn, filteredOut } = possible_winners.reduce(
           (acc, index) => {
-            console.log(sumArray(G.player_hands[index]), minSubArraySum(G.player_hands));
               if (sumArray(G.player_hands[index]) > minSubArraySum(G.player_hands)) {
                   acc.filteredIn.push(index);
               } else {
@@ -247,13 +344,13 @@ export const HautMonde = {
 
       if (possible_winners.length != 0){
         // then, checks for highest status
-        possible_winners.filter((index) => G.player_statuses[index] == maxSubArraySum(G.player_statuses));
+        possible_winners = possible_winners.filter((index) => finalScores[index] == bestScore);
         if (possible_winners.length == 1){
           result.winner = possible_winners[0];
         }
         else{
           // if tied, checks for players with most money left
-          possible_winners.filter((index) => G.player_hands[index] == maxSubArraySum(G.player_hands));
+          possible_winners = possible_winners.filter((index) => sumArray(G.player_hands[index]) == maxSubArraySum(G.player_hands));
           if (possible_winners.length == 1){
             result.winner = possible_winners[0];
           }
