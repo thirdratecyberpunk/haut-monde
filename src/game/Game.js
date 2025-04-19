@@ -358,7 +358,7 @@ export const HautMonde = {
             // if tied, checks for player with single most valuable luxury card
             // possible_winners.filter((index) => G.player_statuses[index] == maxSubArraySum(G.player_hands));
             let largestValue = -Infinity;
-            let indexOfLargestValue = -Infinity;
+            let indexOfLargestValue = 0;
             for (var i = 0; i < ctx.numPlayers; i++){
                 // sort the array in descending order
                 // then check if the first value in the sorted list is bigger than the last
@@ -371,7 +371,7 @@ export const HautMonde = {
                     }
                 }
               }
-              result.winner = possible_winners[0];
+              result.winner = possible_winners[indexOfLargestValue];
             }
           }
         }
