@@ -44,11 +44,11 @@ const createEffectCard = (name, isPositive, incrementsGameEnd, endOfRoundEffect,
 })
 
 // deck of possible status cards (victory points)
-// var DEFAULT_LUXURY_VALUES = [-5,1,2,3,4,5,6,7,8,9,10]; 
-var DEFAULT_LUXURY_VALUES = [1,2,3,4,5,6]; 
+var DEFAULT_LUXURY_VALUES = [-5,1,2,3,4,5,6,7,8,9,10]; 
+// var DEFAULT_LUXURY_VALUES = [1,2,3,4,5,6]; 
 // deck of possible prestige cards (VP modifier multipliers)
-// var DEFAULT_PRESTIGE_VALUES = [2,2,2,0.5];
-var DEFAULT_PRESTIGE_VALUES = [];
+var DEFAULT_PRESTIGE_VALUES = [2,2,2,0.5];
+// var DEFAULT_PRESTIGE_VALUES = [];
 // default currency distribution
 var DEFAULT_CURRENCY_DISTRIBUTION = [1,2,3,4,6,8,10,12,15,20,25];
 // var DEFAULT_CURRENCY_DISTRIBUTION = [1,2,3];
