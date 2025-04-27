@@ -1,19 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { INVALID_MOVE } from 'boardgame.io/core';
 
-// deck of possible status cards (victory points)
-var DEFAULT_LUXURY_VALUES = [-5,1,2,3,4,5,6,7,8,9,10]; 
-// var DEFAULT_LUXURY_VALUES = [1,2,3]; 
-// deck of possible prestige cards (VP modifier multipliers)
-// var DEFAULT_PRESTIGE_VALUES = [2,2,2];
-var DEFAULT_PRESTIGE_VALUES = [2,2,2,0.5];
-// default currency distribution
-var DEFAULT_CURRENCY_DISTRIBUTION = [1,2,3,4,6,8,10,12,15,20,25];
-// var DEFAULT_CURRENCY_DISTRIBUTION = [1,2,3];
-// how many green cards have to be revealed before game immediately ends
-// var DEFAULT_GAME_END_DEADLINE = 2;
-var DEFAULT_GAME_END_DEADLINE = 4;
-
 /**
  * Function that generates Luxury cards
  * @param {*} value -> integer value to define card as
@@ -24,7 +11,6 @@ const createLuxuryCard = (value) => ({
   value: value,
   incrementsGameEnd: false,
   isPositive: (value > 0),
-  endOfRoundEffect: null,
 });
 
 /**
@@ -37,8 +23,40 @@ const createPrestigeCard = (value) => ({
   value: value,
   incrementsGameEnd: true,
   isPositive: (value > 1),
-  endOfRoundEffect: null,
 });
+
+/**
+ * Function that generates Effect cards
+ * (cards with an effect at the end of the round which are 
+ * discarded after being resolve)
+ * @param {*} type 
+ * @param {*} isPositive 
+ * @param {*} endOfRoundEffect 
+ * @returns 
+ */
+const createEffectCard = (name, isPositive, incrementsGameEnd, endOfRoundEffect, tooltip) => ({
+  type: "EffectCard",
+  name: name,
+  isPositive: isPositive,
+  incrementsGameEnd: incrementsGameEnd,
+  endOfRoundEffect: endOfRoundEffect,
+  tooltip: tooltip
+})
+
+// deck of possible status cards (victory points)
+// var DEFAULT_LUXURY_VALUES = [-5,1,2,3,4,5,6,7,8,9,10]; 
+var DEFAULT_LUXURY_VALUES = [1,2,3,4,5,6]; 
+// deck of possible prestige cards (VP modifier multipliers)
+// var DEFAULT_PRESTIGE_VALUES = [2,2,2,0.5];
+var DEFAULT_PRESTIGE_VALUES = [];
+// default currency distribution
+var DEFAULT_CURRENCY_DISTRIBUTION = [1,2,3,4,6,8,10,12,15,20,25];
+// var DEFAULT_CURRENCY_DISTRIBUTION = [1,2,3];
+// default effect card distribution 
+var DEFAULT_EFFECT_DISTRIBUTION = [createEffectCard('Faux Pas', false, false, 'DISCARD', 'Discard your lowest positive valued Luxury good (persists until you have at least one.')];
+// how many green cards have to be revealed before game immediately ends
+// var DEFAULT_GAME_END_DEADLINE = 2;
+var DEFAULT_GAME_END_DEADLINE = 4;
 
 
 /**
@@ -50,9 +68,11 @@ const setupStatusDeck = () => {
 
   let statusDeck = DEFAULT_LUXURY_VALUES.map((card) => createLuxuryCard(card));
   let prestigeDeck = DEFAULT_PRESTIGE_VALUES.map((card) => createPrestigeCard(card));
+  let effectDeck = DEFAULT_EFFECT_DISTRIBUTION;
 
   finalDeck = finalDeck.concat(statusDeck);
   finalDeck = finalDeck.concat(prestigeDeck);
+  finalDeck = finalDeck.concat(effectDeck);
 
   return finalDeck;
 };
@@ -198,11 +218,13 @@ export const HautMonde = {
     current_round: 0,
     last_player: null,
     // TODO: make these get passed in from lobby configuration screen
+    // TODO: fix inconsistent variable naming conventions here
     game_end_deadline: DEFAULT_GAME_END_DEADLINE,
     player_hands: Array.from({ length: ctx.numPlayers}, () => DEFAULT_CURRENCY_DISTRIBUTION),
     current_bids: Array.from({ length: ctx.numPlayers }, () => []),
     player_statuses: Array.from({ length: ctx.numPlayers }, () => []),
     player_prestiges: Array.from({ length: ctx.numPlayers }, () => []),
+    player_effects: Array.from({length: ctx.numPlayers} , () => [])
   }),
   minPlayers: 3,
   maxPlayers: 6,
@@ -210,6 +232,37 @@ export const HautMonde = {
     // draws the card for auction and checks if game should end
     drawNextStatusCard: {
       onBegin: ({G, ctx, events}) => {
+        // first, apply any effects from the effect cards to players
+        // if relevant
+        // TODO: move this into its own phase possibly?
+        // by the vanilla rules, the player can never have more than one effect
+        // card at a time but we'll leave this here in case we add something that
+        // could let players draw multiple effect cards simultaneously
+        for (let playerCount = 0; playerCount < ctx.numPlayers; playerCount++){
+          let currentPlayerEffects = G.player_effects[playerCount];
+          let currentPlayerStatuses = G.player_statuses[playerCount];
+          // iterating through array in reverse so we can delete resolved effects
+          if (currentPlayerEffects.length > 0){
+            for (let effectCount = currentPlayerEffects.length - 1; effectCount >= 0; effectCount--){
+              // TODO: probably a tidier way of checking these effects?
+              if (currentPlayerEffects[effectCount] && currentPlayerEffects[effectCount].endOfRoundEffect == 'DISCARD'){
+                // if the current player has any status cards, discard one
+                // (for convenience, assume the player would always logically discard the
+                // lowest valid card)
+                const filteredStatuses = currentPlayerStatuses.filter(obj => obj.value > 0);
+                if (filteredStatuses.length > 0) {
+                    const indexToRemove = filteredStatuses.reduce((minIndex, obj, idx, filteredArray) => {
+                        return obj.value < filteredArray[minIndex].value ? idx : minIndex;
+                    }, 0);
+                    const smallestValueObject = filteredStatuses[indexToRemove];
+                    // Remove the status and effect card
+                    G.player_statuses[playerCount] = currentPlayerStatuses.filter(obj => obj !== smallestValueObject);
+                    G.player_effects[playerCount].splice(effectCount, 1);
+                }
+              }
+            }
+          }
+        }
         console.log('Drawing next status card');
         G.current_status_card = G.status_deck.pop();
         if (G.current_status_card.incrementsGameEnd){
@@ -251,6 +304,9 @@ export const HautMonde = {
             else if (G.current_status_card.type == "PrestigeCard"){
               G.player_prestiges[auction_winner_index].push(G.current_status_card);
             }
+            else{
+              G.player_effects[auction_winner_index].push(G.current_status_card);
+            }
             G.last_player = auction_winner_index;
             // resets all bids
             G.current_bids = G.current_bids.map(() => []);
@@ -275,7 +331,7 @@ export const HautMonde = {
           if (sumArray(newMove) <= maxSubArraySum(G.current_bids)){
             return INVALID_MOVE;
           }
-          // sets the current bid to be 
+          // sets the current bid to be the old bid plus new cards
           G.current_bids[ctx.currentPlayer] = newMove;
           // removes the cards added in the bid from the player's hand
           G.player_hands[ctx.currentPlayer] = removeElements(G.player_hands[ctx.currentPlayer],move);
@@ -306,6 +362,9 @@ export const HautMonde = {
           }
           else if (G.current_status_card.type == "PrestigeCard"){
             G.player_prestiges[auction_winner_index].push(G.current_status_card);
+          }
+          else{
+            G.player_effects[auction_winner_index].push(G.current_status_card);
           }
           // sets the last player to the current player 
           G.last_player = auction_winner_index;
@@ -344,14 +403,14 @@ export const HautMonde = {
       },
     },
   },
-  turn: {
-    moveLimit: 1
-  },
-  moves:{
-    // player chooses to pass in the current auction
-    pass: ({G, ctx}) => {
-    }
-  },
+  // turn: {
+  //   moveLimit: 1
+  // },
+  // moves:{
+  //   // player chooses to pass in the current auction
+  //   pass: ({G, ctx}) => {
+  //   }
+  // },
   endIf: ({G, ctx}) => {
     if ((G.current_game_end_timer == G.game_end_deadline) || (G.status_deck.length === 0)){
       let result = {winner: null, castOut: null, finalScores: []};
