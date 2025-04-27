@@ -2,16 +2,17 @@
 import { INVALID_MOVE } from 'boardgame.io/core';
 
 // deck of possible status cards (victory points)
-// var DEFAULT_LUXURY_VALUES = [1,2,3,4,5,6,7,8,9,10]; 
-var DEFAULT_LUXURY_VALUES = [1,2,3]; 
+var DEFAULT_LUXURY_VALUES = [-5,1,2,3,4,5,6,7,8,9,10]; 
+// var DEFAULT_LUXURY_VALUES = [1,2,3]; 
 // deck of possible prestige cards (VP modifier multipliers)
-// var DEFAULT_PRESTIGE_VALUES = [2,2,2,0.5];
-var DEFAULT_PRESTIGE_VALUES = [2,2,2];
+// var DEFAULT_PRESTIGE_VALUES = [2,2,2];
+var DEFAULT_PRESTIGE_VALUES = [2,2,2,0.5];
 // default currency distribution
 var DEFAULT_CURRENCY_DISTRIBUTION = [1,2,3,4,6,8,10,12,15,20,25];
 // var DEFAULT_CURRENCY_DISTRIBUTION = [1,2,3];
 // how many green cards have to be revealed before game immediately ends
-var DEFAULT_GAME_END_DEADLINE = 2;
+// var DEFAULT_GAME_END_DEADLINE = 2;
+var DEFAULT_GAME_END_DEADLINE = 4;
 
 /**
  * Function that generates Luxury cards
@@ -40,6 +41,10 @@ const createPrestigeCard = (value) => ({
 });
 
 
+/**
+ * TODO: make this take in a set of options rather than hard coded luxury value definitions
+ * @returns 
+ */
 const setupStatusDeck = () => {
   let finalDeck = [];
 
@@ -290,14 +295,53 @@ export const HautMonde = {
       moves: {
         // player takes any cards they've played back into hand 
         // and ends this phase
-        pass: ({G, ctx}) => {
+        pass: ({G, ctx, events}) => {
+          let auction_winner_index = ctx.currentPlayer;
+          // returns any bidded cards back to this player's hand
+          G.player_hands[auction_winner_index].concat(G.current_bids[ctx.currentPlayer]);
+          // all other players lose their bids
+          // gives the status card to the current player
+          if (G.current_status_card.type == "LuxuryCard"){
+            G.player_statuses[auction_winner_index].push(G.current_status_card);
+          }
+          else if (G.current_status_card.type == "PrestigeCard"){
+            G.player_prestiges[auction_winner_index].push(G.current_status_card);
+          }
+          // sets the last player to the current player 
+          G.last_player = auction_winner_index;
+          // resets all bids
+          G.current_bids = G.current_bids.map(() => []);
+          events.endPhase();
         },
         // player adds another money card from their hand into
         // their current bid assuming it's more than the last bid
-        bid: ({G, ctx}) => {
+        bid: ({G, ctx}, move) => {
+          // checks if the move is an array of possible money cards
+          if (!Array.isArray(move)){
+            return INVALID_MOVE;
+          }
+          // checks that move is a valid array of possible cards
+          // i.e. player's hand actually contains these cards
+          if (!(move.every(r => G.player_hands[ctx.currentPlayer].includes(r)))){
+            return INVALID_MOVE;
+          }
+          // add the cards included in the move to the player's current bid
+          let newMove = G.current_bids[ctx.currentPlayer].concat(move);
+          // checks that the sum of the new bid is greater than the current biggest bid
+          if (sumArray(newMove) <= maxSubArraySum(G.current_bids)){
+            return INVALID_MOVE;
+          }
+          // sets the current bid to be 
+          G.current_bids[ctx.currentPlayer] = newMove;
+          // removes the cards added in the bid from the player's hand
+          G.player_hands[ctx.currentPlayer] = removeElements(G.player_hands[ctx.currentPlayer],move);
         }
       },
-      turn: {minMoves: 1, maxMoves: 1}
+      turn: {minMoves: 1, maxMoves: 1},
+      next: ({G, ctx}) => {
+        // triggers next auction
+        return 'drawNextStatusCard';
+      },
     },
   },
   turn: {
