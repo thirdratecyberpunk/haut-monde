@@ -10,6 +10,12 @@
       :currentPlayerPrestigeCards="G.player_prestiges[ctx.currentPlayer]"
       :currentPlayerHand="G.player_hands[ctx.currentPlayer]"
       />
+      <BidForm
+      :currentPlayerHand="G.player_hands[ctx.currentPlayer]"
+      :currentPlayer="ctx.currentPlayer"
+      :moves="moves"
+      >
+      </BidForm>
       <GameOutcome v-if="ctx.gameover" :gameover="ctx.gameover" />
     </div>
   </template>
@@ -20,6 +26,7 @@
   import CardDetails from './CardDetails.vue';
   import PlayerStats from './PlayerStats.vue';
   import GameOutcome from './GameOutcome.vue';
+  import BidForm from './BidForm.vue';
 
   export default {
     props: {
@@ -32,7 +39,8 @@
       GameTimer,
       CardDetails,
       GameOutcome,
-      PlayerStats
+      PlayerStats,
+      BidForm,
     },
     data() {
       return {
